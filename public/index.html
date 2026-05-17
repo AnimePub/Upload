@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Anipub Dashboard</title>
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #141416;
+    --surface2: #1c1c1f;
+    --surface3: #242428;
+    --border: #2a2a2e;
+    --border2: #38383e;
+    --text: #e8e8ea;
+    --muted: #6b6b72;
+    --accent: #7c6aff;
+    --accent-dim: #7c6aff22;
+    --green: #3ecf8e;
+    --green-dim: #3ecf8e18;
+    --red: #f87171;
+    --red-dim: #f8717118;
+    --yellow: #fbbf24;
+    --yellow-dim: #fbbf2418;
+    --blue: #60a5fa;
+    --blue-dim: #60a5fa15;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+
+  .sidebar-logo {
+    padding: 0 20px 24px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sidebar-logo span {
+    display: inline-block;
+    width: 28px;
+    height: 28px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 20px;
+    cursor: pointer;
+    color: var(--muted);
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
+    font-size: 13px;
+  }
+
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--text); border-left-color: var(--accent); background: var(--accent-dim); }
+
+  .nav-icon { font-size: 16px; width: 18px; text-align: center; }
+
+  .sidebar-bottom {
+    margin-top: auto;
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .status-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  .dot.running { background: var(--accent); animation: pulse 1s infinite; }
+  .dot.idle { background: var(--border2); }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── Main ── */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px;
+    max-width: 960px;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header {
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .page-title { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  .page-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* ── Stats row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+
+  .stat-val {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 3px;
+  }
+
+  .stat-lbl { font-size: 12px; color: var(--muted); }
+  .stat.green .stat-val { color: var(--green); }
+  .stat.blue .stat-val { color: var(--blue); }
+  .stat.yellow .stat-val { color: var(--yellow); }
+  .stat.red .stat-val { color: var(--red); }
+
+  /* ── Progress bar ── */
+  .progress-wrap { margin-bottom: 16px; }
+  .progress-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+  .progress-track { height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s; width: 0%; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--text);
+    transition: all 0.15s;
+  }
+
+  .btn:hover { background: var(--surface3); border-color: var(--border2); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .btn.primary:hover { filter: brightness(1.1); }
+
+  .btn.danger {
+    background: var(--red-dim);
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  .btn.sm { padding: 5px 11px; font-size: 12px; }
+
+  /* ── Form ── */
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 500; }
+
+  .form-row input[type="text"],
+  .form-row input[type="password"],
+  .form-row input[type="number"],
+  .form-row input[type="time"],
+  .form-row input[type="date"] {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 9px 12px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-row input:focus { border-color: var(--accent); }
+
+  .form-row .hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-info .label { font-size: 13px; font-weight: 500; }
+  .toggle-info .desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .toggle {
+    position: relative;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--surface3);
+    border-radius: 11px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--muted);
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: all 0.2s;
+  }
+
+  .toggle input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); }
+  .toggle input:checked + .toggle-track::after { transform: translateX(16px); background: #fff; }
+
+  /* ── Log box ── */
+  .log-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .log-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    height: 460px;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    padding: 12px;
+  }
+
+  .log-entry {
+    display: flex;
+    gap: 10px;
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+  }
+
+  .log-entry:last-child { border: none; }
+  .log-time { color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+  .log-msg { word-break: break-all; }
+  .log-msg.ok { color: var(--green); }
+  .log-msg.error { color: var(--red); }
+  .log-msg.warn { color: var(--yellow); }
+  .log-msg.skip { color: var(--yellow); }
+  .log-msg.info { color: var(--muted); }
+
+  /* ── Schedule preview ── */
+  .anime-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .anime-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    transition: border-color 0.15s;
+  }
+
+  .anime-card:hover { border-color: var(--border2); }
+
+  .anime-ep {
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .anime-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 3px;
+    line-height: 1.3;
+  }
+
+  .anime-time {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+  .empty-state p { font-size: 13px; }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .badge.green { background: var(--green-dim); color: var(--green); }
+  .badge.red { background: var(--red-dim); color: var(--red); }
+  .badge.yellow { background: var(--yellow-dim); color: var(--yellow); }
+  .badge.accent { background: var(--accent-dim); color: var(--accent); }
+
+  /* ── Next run ── */
+  .next-run-card {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 5px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+  select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    padding: 7px 10px;
+    font-size: 12px;
+    outline: none;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+
+<!-- Auth overlay -->
+<div id="auth-overlay" style="display:none;position:fixed;inset:0;background:#0d0d0f;z-index:9999;display:flex;align-items:center;justify-content:center">
+  <div style="background:#141416;border:1px solid #2a2a2e;border-radius:12px;padding:36px;width:340px">
+    <div style="font-size:18px;font-weight:700;margin-bottom:6px" id="auth-title">Welcome back</div>
+    <div style="font-size:13px;color:#6b6b72;margin-bottom:24px" id="auth-sub">Enter your dashboard password</div>
+    <div style="margin-bottom:14px">
+      <label style="font-size:12px;color:#6b6b72;display:block;margin-bottom:6px" id="auth-label">Password</label>
+      <input id="auth-pw" type="password" placeholder="••••••••"
+        style="width:100%;background:#1c1c1f;border:1px solid #2a2a2e;border-radius:6px;color:#e8e8ea;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter')authSubmit()" autofocus/>
+    </div>
+    <div id="auth-confirm-wrap" style="display:none;margin-bottom:14px">
+      <label style="font-size:12px;color:#6b6b72;display:block;margin-bottom:6px">Confirm Password</label>
+      <input id="auth-pw2" type="password" placeholder="••••••••"
+        style="width:100%;background:#1c1c1f;border:1px solid #2a2a2e;border-radius:6px;color:#e8e8ea;padding:9px 12px;font-size:13px;outline:none;box-sizing:border-box"
+        onkeydown="if(event.key==='Enter')authSubmit()"/>
+    </div>
+    <div id="auth-err" style="color:#f87171;font-size:12px;margin-bottom:10px;display:none"></div>
+    <button onclick="authSubmit()"
+      style="width:100%;padding:9px;background:#7c6aff;border:none;border-radius:6px;color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+      Continue
+    </button>
+  </div>
+</div>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <span>▲</span> Anipub
+  </div>
+  <nav>
+    <div class="nav-item active" data-page="dashboard">
+      <span class="nav-icon">⊞</span> Dashboard
+    </div>
+    <div class="nav-item" data-page="run">
+      <span class="nav-icon">▶</span> Run Pipeline
+    </div>
+    <div class="nav-item" data-page="logs">
+      <span class="nav-icon">≡</span> Logs
+    </div>
+    <div class="nav-item" data-page="schedule">
+      <span class="nav-icon">◷</span> Preview Schedule
+    </div>
+    <div class="nav-item" data-page="settings">
+      <span class="nav-icon">⚙</span> Settings
+    </div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div class="status-dot" style="margin-bottom:10px">
+      <span class="dot idle" id="sidebar-dot"></span>
+      <span id="sidebar-status">Idle</span>
+    </div>
+    <button onclick="logout()" style="width:100%;padding:6px;background:transparent;border:1px solid #2a2a2e;border-radius:6px;color:#6b6b72;font-size:12px;cursor:pointer">Sign out</button>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+
+  <!-- Dashboard -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub">Overview of today's pipeline activity</div>
+      </div>
+      <button class="btn primary" id="quick-run-btn" onclick="quickRun()">▶ Run Now</button>
+    </div>
+
+    <div id="dash-next-run" class="next-run-card" style="display:none">
+      <span>⏰ Next scheduled run: <strong id="dash-next-time">—</strong></span>
+      <span class="badge accent" id="dash-cron-badge">Auto</span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat green"><div class="stat-val" id="d-added">0</div><div class="stat-lbl">Added</div></div>
+      <div class="stat blue"><div class="stat-val" id="d-synced">0</div><div class="stat-lbl">Synced</div></div>
+      <div class="stat yellow"><div class="stat-val" id="d-skipped">0</div><div class="stat-lbl">Skipped</div></div>
+      <div class="stat red"><div class="stat-val" id="d-errors">0</div><div class="stat-lbl">Errors</div></div>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span id="prog-label">No pipeline running</span>
+        <span id="prog-pct">—</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Live Log</div>
+      <div class="log-box scrollbar-thin" id="dash-log"></div>
+    </div>
+  </div>
+
+  <!-- Run Pipeline -->
+  <div class="page" id="page-run">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Run Pipeline</div>
+        <div class="page-sub">Manually trigger an upload for any date</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Select Date</div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Date to process</label>
+          <input type="date" id="run-date" />
+          <div class="hint">Leave blank to use yesterday automatically</div>
+        </div>
+        <div class="form-row">
+          <label>Delay between anime (ms)</label>
+          <input type="number" id="run-delay" value="3000" min="500" max="30000" step="500"/>
+        </div>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:10px">
+        <button class="btn primary" id="run-start-btn" onclick="startRun()">▶ Start Pipeline</button>
+        <button class="btn" onclick="previewFromRun()">👁 Preview Schedule</button>
+      </div>
+    </div>
+
+    <div class="card" id="run-log-card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>Pipeline Log</span>
+        <span class="badge green" id="run-badge" style="display:none">Running</span>
+      </div>
+      <div class="log-box scrollbar-thin" id="run-log"></div>
+    </div>
+  </div>
+
+  <!-- Logs -->
+  <div class="page" id="page-logs">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Logs</div>
+        <div class="page-sub">Saved logs (last 2 days)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="log-toolbar">
+        <select id="log-date-select" onchange="loadLogDate()">
+          <option value="">Loading dates...</option>
+        </select>
+        <button class="btn sm" onclick="clearLogView()">Clear view</button>
+      </div>
+      <div class="log-box scrollbar-thin" id="logs-box">
+        <div class="empty-state"><div class="icon">📋</div><p>Select a date to view logs</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Schedule -->
+  <div class="page" id="page-schedule">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Preview Schedule</div>
+        <div class="page-sub">See what aired on a given day before running</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:10px;align-items:flex-end">
+        <div class="form-row" style="flex:1;margin:0">
+          <label>Date</label>
+          <input type="date" id="preview-date" />
+        </div>
+        <button class="btn primary" onclick="loadPreview()">Fetch Schedule</button>
+      </div>
+    </div>
+
+    <div id="preview-results"></div>
+  </div>
+
+  <!-- Settings -->
+  <div class="page" id="page-settings">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Settings</div>
+        <div class="page-sub">Cookie, schedule, and pipeline options</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Authentication</div>
+      <div class="form-row">
+        <label>Anipub Cookie</label>
+        <input type="password" id="s-cookie" placeholder="Paste your anipub session cookie"/>
+        <div class="hint">🔒 Stored in your browser only — never sent to or saved on the server.</div>
+      </div>
+      <div class="form-row" style="margin-top:14px">
+        <label>Change Dashboard Password</label>
+        <input type="password" id="s-newpw" placeholder="New password (min 4 chars)"/>
+        <div class="hint">Leave blank to keep current password.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Auto Schedule</div>
+      <div class="toggle-row">
+        <div class="toggle-info">
+          <div class="label">Enable daily auto-run</div>
+          <div class="desc">Automatically processes yesterday's schedule every day</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="s-cron-enabled" onchange="toggleCronTime()"/>
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="form-row" id="cron-time-row" style="margin-top:14px;display:none">
+        <label>Run at (24h time)</label>
+        <input type="time" id="s-cron-time" value="06:00"/>
+        <div class="hint">Server local time. Pipeline runs on the next day after this time.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pipeline Options</div>
+      <div class="form-row">
+        <label>Delay between anime (ms)</label>
+        <input type="number" id="s-delay" value="3000" min="500" max="30000" step="500"/>
+        <div class="hint">3000ms recommended to avoid overwhelming the server</div>
+      </div>
+    </div>
+
+    <button class="btn primary" onclick="saveSettings()" style="margin-top:4px">Save Settings</button>
+    <span id="save-ok" style="margin-left:10px;color:var(--green);font-size:12px;display:none">✓ Saved</span>
+  </div>
+
+</main>
+
+<script>
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+let authToken = localStorage.getItem('anipub_token') || '';
+let isSetup = false;
+
+function apiFetch(url, opts = {}) {
+  opts.headers = opts.headers || {};
+  opts.headers['x-auth-token'] = authToken;
+  return fetch(url, opts).then(async r => {
+    if (r.status === 401) { showAuth(); throw new Error('Unauthorized'); }
+    return r;
+  });
+}
+
+async function showAuth() {
+  const r = await fetch('/api/needs-setup');
+  const d = await r.json();
+  isSetup = !d.needsSetup;
+  const overlay = document.getElementById('auth-overlay');
+  overlay.style.display = 'flex';
+  document.getElementById('auth-title').textContent = isSetup ? 'Welcome back' : 'Set up dashboard';
+  document.getElementById('auth-sub').textContent = isSetup ? 'Enter your dashboard password' : 'Create a password to protect your dashboard';
+  document.getElementById('auth-label').textContent = isSetup ? 'Password' : 'Create Password';
+  document.getElementById('auth-confirm-wrap').style.display = isSetup ? 'none' : '';
+  document.getElementById('auth-pw').value = '';
+  document.getElementById('auth-err').style.display = 'none';
+}
+
+async function authSubmit() {
+  const pw = document.getElementById('auth-pw').value;
+  const err = document.getElementById('auth-err');
+  err.style.display = 'none';
+
+  if (!isSetup) {
+    const pw2 = document.getElementById('auth-pw2').value;
+    if (pw.length < 4) { err.textContent = 'Min 4 characters'; err.style.display = ''; return; }
+    if (pw !== pw2) { err.textContent = 'Passwords do not match'; err.style.display = ''; return; }
+    const r = await fetch('/api/setup', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ password: pw }) });
+    const d = await r.json();
+    if (!d.ok) { err.textContent = d.error; err.style.display = ''; return; }
+    isSetup = true;
+  }
+
+  const r = await fetch('/api/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ password: pw }) });
+  const d = await r.json();
+  if (!d.ok) { err.textContent = d.error || 'Wrong password'; err.style.display = ''; return; }
+
+  authToken = d.token;
+  localStorage.setItem('anipub_token', authToken);
+  document.getElementById('auth-overlay').style.display = 'none';
+  connectSSE();
+  init();
+}
+
+async function logout() {
+  await apiFetch('/api/logout', { method: 'POST' });
+  authToken = '';
+  localStorage.removeItem('anipub_token');
+  if (es) { es.close(); es = null; }
+  showAuth();
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('page-' + el.dataset.page).classList.add('active');
+    if (el.dataset.page === 'logs') loadLogDates();
+  });
+});
+
+// ─── SSE ──────────────────────────────────────────────────────────────────────
+let stats = { added: 0, skipped: 0, synced: 0, errors: 0 };
+
+let es = null;
+
+function connectSSE() {
+  if (es) { es.close(); es = null; }
+  if (!authToken) return;
+
+  es = new EventSource('/api/stream?token=' + encodeURIComponent(authToken));
+  es.onmessage = ({ data }) => {
+    const d = JSON.parse(data);
+    if (d.type === 'status') handleStatus(d);
+    if (d.type === 'log') handleLog(d.entry);
+    if (d.type === 'progress') handleProgress(d);
+    if (d.type === 'cron_trigger') handleCronTrigger(d);
+  };
+  es.onerror = () => {
+    // Retry connection after 5s on error
+    setTimeout(() => { if (authToken) connectSSE(); }, 5000);
+  };
+}
+
+function handleStatus(d) {
+  const dot = document.getElementById('sidebar-dot');
+  const st = document.getElementById('sidebar-status');
+  if (d.running) {
+    dot.className = 'dot running';
+    st.textContent = 'Running';
+    document.getElementById('quick-run-btn').disabled = true;
+    document.getElementById('run-start-btn').disabled = true;
+    document.getElementById('run-badge').style.display = '';
+  } else {
+    dot.className = 'dot idle';
+    st.textContent = 'Idle';
+    document.getElementById('quick-run-btn').disabled = false;
+    document.getElementById('run-start-btn').disabled = false;
+    document.getElementById('run-badge').style.display = 'none';
+    if (d.summary) {
+      stats = d.summary;
+      updateStats();
+    }
+  }
+}
+
+function handleLog(entry) {
+  appendLogLine('dash-log', entry);
+  appendLogLine('run-log', entry);
+}
+
+function handleCronTrigger() {
+  const cookie = localStorage.getItem('anipub_cookie');
+  if (!cookie) {
+    appendLogLine('dash-log', { msg: '⏰ Scheduled run triggered — no cookie found. Go to Settings and save your cookie.', type: 'warn', time: new Date().toISOString() });
+    return;
+  }
+  // Always run yesterday's schedule (cron fires today, we want yesterday's anime)
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const yesterday = d.toISOString().slice(0, 10);
+  console.log('[cron] Auto-trigger received, running pipeline for', yesterday);
+  appendLogLine('dash-log', { msg: '⏰ Auto-scheduled run started for ' + yesterday, type: 'info', time: new Date().toISOString() });
+  apiFetch('/api/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date: yesterday, cookie }),
+  });
+}
+
+function handleProgress({ current, total }) {
+  const pct = Math.round((current / total) * 100);
+  document.getElementById('prog-fill').style.width = pct + '%';
+  document.getElementById('prog-label').textContent = `Processing ${current} of ${total}`;
+  document.getElementById('prog-pct').textContent = pct + '%';
+}
+
+// ─── Log helpers ──────────────────────────────────────────────────────────────
+function appendLogLine(boxId, entry) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  const line = document.createElement('div');
+  line.className = 'log-entry';
+  const t = new Date(entry.time).toLocaleTimeString('en-GB', { hour12: false });
+  line.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${entry.type || ''}">${escHtml(entry.msg)}</span>`;
+  box.appendChild(line);
+  box.scrollTop = box.scrollHeight;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ─── Stats ────────────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('d-added').textContent = stats.added || 0;
+  document.getElementById('d-synced').textContent = stats.synced || 0;
+  document.getElementById('d-skipped').textContent = stats.skipped || 0;
+  document.getElementById('d-errors').textContent = stats.errors || 0;
+}
+
+// ─── Run pipeline ─────────────────────────────────────────────────────────────
+async function quickRun() {
+  const cookie = localStorage.getItem('anipub_cookie');
+  if (!cookie) { alert('No cookie saved. Go to Settings and paste your anipub cookie first.'); return; }
+  await apiFetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie }) });
+  document.getElementById('prog-label').textContent = 'Pipeline starting...';
+  document.getElementById('prog-fill').style.width = '0%';
+  stats = { added:0, skipped:0, synced:0, errors:0 };
+  updateStats();
+  document.getElementById('dash-log').innerHTML = '';
+}
+
+async function startRun() {
+  const date = document.getElementById('run-date').value;
+  const delay = parseInt(document.getElementById('run-delay').value) || 3000;
+
+  // Save delay to settings first
+  await apiFetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ delayMs: delay }),
+  });
+
+  const cookie = localStorage.getItem('anipub_cookie');
+  if (!cookie) { alert('No cookie saved. Go to Settings and paste your anipub cookie first.'); return; }
+  await apiFetch('/api/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date: date || null, cookie }),
+  });
+
+  document.getElementById('run-log').innerHTML = '';
+  stats = { added:0, skipped:0, synced:0, errors:0 };
+  updateStats();
+}
+
+// ─── Preview ──────────────────────────────────────────────────────────────────
+async function loadPreview() {
+  const date = document.getElementById('preview-date').value;
+  const el = document.getElementById('preview-results');
+  el.innerHTML = '<div class="empty-state"><div class="icon">⏳</div><p>Fetching...</p></div>';
+
+  try {
+    const res = await apiFetch('/api/preview' + (date ? `?date=${date}` : ''));
+    const data = await res.json();
+
+    if (!data.length) {
+      el.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>No anime found for this date</p></div>';
+      return;
+    }
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="color:var(--muted);font-size:12px">${data.length} anime found</span>
+        <button class="btn sm primary" onclick="runFromPreview('${date}')">▶ Upload These</button>
+      </div>
+      <div class="anime-grid">
+        ${data.map(a => `
+          <div class="anime-card">
+            <div class="anime-ep">${escHtml(a.episode || '')}</div>
+            <div class="anime-title">${escHtml(a.title)}</div>
+            <div class="anime-time">🕐 ${a.time || ''}</div>
+          </div>
+        `).join('')}
+      </div>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">⚠</div><p>Error: ${e.message}</p></div>`;
+  }
+}
+
+function previewFromRun() {
+  const date = document.getElementById('run-date').value;
+  document.getElementById('preview-date').value = date;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-page="schedule"]').classList.add('active');
+  document.getElementById('page-schedule').classList.add('active');
+  loadPreview();
+}
+
+function runFromPreview(date) {
+  document.querySelector('[data-page="run"]').click();
+  if (date) document.getElementById('run-date').value = date;
+  setTimeout(startRun, 100);
+}
+
+// ─── Logs ─────────────────────────────────────────────────────────────────────
+async function loadLogDates() {
+  const sel = document.getElementById('log-date-select');
+  const res = await apiFetch('/api/logs/dates');
+  const dates = await res.json();
+  sel.innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join('');
+  if (dates.length) loadLogDate();
+}
+
+async function loadLogDate() {
+  const date = document.getElementById('log-date-select').value;
+  if (!date) return;
+  const res = await apiFetch(`/api/logs?date=${date}`);
+  const entries = await res.json();
+  const box = document.getElementById('logs-box');
+  if (!entries.length) {
+    box.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>No logs for this date</p></div>';
+    return;
+  }
+  box.innerHTML = '';
+  entries.forEach(e => appendLogLine('logs-box', e));
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLogView() {
+  document.getElementById('logs-box').innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>Cleared</p></div>';
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+function toggleCronTime() {
+  const enabled = document.getElementById('s-cron-enabled').checked;
+  document.getElementById('cron-time-row').style.display = enabled ? '' : 'none';
+}
+
+async function loadSettings() {
+  const res = await apiFetch('/api/settings');
+  const s = await res.json();
+  const hasCookie = !!localStorage.getItem('anipub_cookie');
+  document.getElementById('s-cookie').placeholder = hasCookie ? 'Cookie saved in browser ••••••' : 'Paste your anipub session cookie';
+  document.getElementById('s-cron-enabled').checked = s.scheduleEnabled;
+  document.getElementById('s-cron-time').value = s.scheduleTime || '06:00';
+  document.getElementById('s-delay').value = s.delayMs || 3000;
+  document.getElementById('run-delay').value = s.delayMs || 3000;
+  toggleCronTime();
+
+  // Dashboard next-run card
+  if (s.scheduleEnabled && s.scheduleTime) {
+    document.getElementById('dash-next-run').style.display = '';
+    document.getElementById('dash-next-time').textContent = s.scheduleTime + ' daily';
+  } else {
+    document.getElementById('dash-next-run').style.display = 'none';
+  }
+}
+
+async function saveSettings() {
+  // Save cookie to localStorage — never to server
+  const cookieVal = document.getElementById('s-cookie').value.trim();
+  if (cookieVal) {
+    localStorage.setItem('anipub_cookie', cookieVal);
+    document.getElementById('s-cookie').value = '';
+    document.getElementById('s-cookie').placeholder = 'Cookie saved in browser ••••••';
+  }
+
+  const payload = {
+    scheduleEnabled: document.getElementById('s-cron-enabled').checked,
+    scheduleTime: document.getElementById('s-cron-time').value,
+    delayMs: parseInt(document.getElementById('s-delay').value) || 3000,
+    newPassword: document.getElementById('s-newpw').value || undefined,
+  };
+
+  await apiFetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  document.getElementById('s-cookie').value = '';
+  document.getElementById('s-cookie').placeholder = 'Cookie saved ••••••';
+  const ok = document.getElementById('save-ok');
+  ok.style.display = '';
+  setTimeout(() => ok.style.display = 'none', 2500);
+  loadSettings();
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function checkAuthAndInit() {
+  if (!authToken) { showAuth(); return; }
+  // Validate token
+  try {
+    const r = await fetch('/api/status', { headers: { 'x-auth-token': authToken } });
+    if (r.status === 401) { showAuth(); return; }
+  } catch { showAuth(); return; }
+  init();
+}
+
+async function init() {
+  connectSSE(); // Connect SSE now that we have a valid token
+  // Set default dates to yesterday
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yStr = yesterday.toISOString().slice(0, 10);
+  document.getElementById('preview-date').value = yStr;
+  document.getElementById('run-date').value = yStr;
+
+  await loadSettings();
+
+  // Load any today logs into dash
+  const res = await apiFetch('/api/logs');
+  const entries = await res.json();
+  entries.forEach(e => appendLogLine('dash-log', e));
+
+  // Status
+  const statusRes = await apiFetch('/api/status');
+  const status = await statusRes.json();
+  if (status.running) {
+    handleStatus({ running: true });
+  } else if (status.summary) {
+    stats = status.summary;
+    updateStats();
+  }
+}
+
+checkAuthAndInit();
+</script>
+</body>
+</html>
