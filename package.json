@@ -1,5 +1,5 @@
 {
-  "name": "anipub-dashboard",
+  "name": "anipub-uploader",
   "version": "1.0.0",
   "description": "Anipub scheduler dashboard",
   "main": "server.js",
