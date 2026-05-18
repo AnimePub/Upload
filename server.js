@@ -1,4 +1,4 @@
-// server.js
+
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
@@ -12,13 +12,13 @@ const PORT = process.env.PORT || 3000;
 const DATA_FILE = path.join(__dirname, "data", "settings.json");
 const LOGS_DIR = path.join(__dirname, "logs");
 
-// ─── Ensure dirs exist ────────────────────────────────────────────────────────
+
 if (!fs.existsSync(path.join(__dirname, "data"))) fs.mkdirSync(path.join(__dirname, "data"));
 if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR);
 
 app.use(express.json());
 
-// ─── Settings helpers ─────────────────────────────────────────────────────────
+
 function loadSettings() {
   try {
     return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
@@ -33,13 +33,12 @@ function saveSettings(s) {
 
 
 
-// ─── Cookie encryption (AES-256-GCM, key derived from dashboard password) ─────
-// Cookie is encrypted at rest — even if settings.json is stolen, cookie is useless without the password
+
 
 const CIPHER_ALG = "aes-256-gcm";
 
 function deriveKey(password) {
-  // Derive a 32-byte key from the dashboard password using SHA-256
+
   return crypto.createHash("sha256").update(password).digest();
 }
 
@@ -49,7 +48,7 @@ function encryptCookie(plaintext, password) {
   const cipher = crypto.createCipheriv(CIPHER_ALG, key, iv);
   const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
-  // Store as iv:tag:ciphertext (all hex)
+ 
   return iv.toString("hex") + ":" + tag.toString("hex") + ":" + encrypted.toString("hex");
 }
 
@@ -64,11 +63,11 @@ function decryptCookie(stored, password) {
     decipher.setAuthTag(tag);
     return decipher.update(data) + decipher.final("utf8");
   } catch {
-    return null; // Wrong password or corrupted data
+    return null; 
   }
 }
 
-// ─── Auth helpers ─────────────────────────────────────────────────────────────
+
 function hashPassword(pw) {
   return crypto.createHash("sha256").update(pw).digest("hex");
 }
@@ -84,13 +83,13 @@ function requireAuth(req, res, next) {
   const s = loadSettings();
   if (!s.dashPassword) return res.status(401).json({ error: "No password set", needsSetup: true });
 
-  // SSE passes token as query param (EventSource can't set headers)
+
   const token = req.headers["x-auth-token"] || req.query.token;
   const sessions = s.sessions || {};
 
   if (!token || !sessions[token]) return res.status(401).json({ error: "Unauthorized" });
 
-  // Expire after 7 days
+ 
   if (Date.now() - sessions[token].created > 7 * 24 * 60 * 60 * 1000) {
     delete sessions[token];
     s.sessions = sessions;
@@ -101,7 +100,7 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// ─── Log helpers ──────────────────────────────────────────────────────────────
+
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -139,7 +138,7 @@ function appendLog(entry) {
   });
 }
 
-// ─── SSE clients ──────────────────────────────────────────────────────────────
+
 let sseClients = [];
 let pipelineRunning = false;
 let lastSummary = null;
@@ -151,7 +150,7 @@ function broadcast(data) {
   });
 }
 
-// ─── Pipeline runner ──────────────────────────────────────────────────────────
+
 function getYesterday() {
   const d = new Date();
   d.setDate(d.getDate() - 1);
@@ -200,7 +199,7 @@ async function startPipeline(dateOverride, cookie) {
   return { ok: true, date };
 }
 
-// ─── Cron job ─────────────────────────────────────────────────────────────────
+
 let cronJob = null;
 
 function applyCron(settings) {
@@ -212,7 +211,7 @@ function applyCron(settings) {
     try {
       cronJob = cron.schedule(expr, () => {
         console.log(`[cron] Auto-run triggered at ${settings.scheduleTime}`);
-        // Run fully on server — cookie is decrypted from storage automatically
+      
         startPipeline(getYesterday(), null).then(result => {
           if (result?.error) {
             console.error("[cron] Pipeline failed:", result.error);
@@ -227,21 +226,18 @@ function applyCron(settings) {
   }
 }
 
-// Apply saved cron on startup
+
 applyCron(loadSettings());
 
-// ─── Static (public files, no auth needed) ────────────────────────────────────
 app.use(express.static(path.join(__dirname, "public")));
 
-// ─── Public auth routes ───────────────────────────────────────────────────────
 
-// Is password set up?
 app.get("/api/needs-setup", (req, res) => {
   const s = loadSettings();
   res.json({ needsSetup: !s.dashPassword });
 });
 
-// First-time setup
+
 app.post("/api/setup", (req, res) => {
   const s = loadSettings();
   if (s.dashPassword) return res.status(400).json({ error: "Already set up" });
@@ -253,7 +249,7 @@ app.post("/api/setup", (req, res) => {
   res.json({ ok: true });
 });
 
-// Login
+
 app.post("/api/login", (req, res) => {
   const s = loadSettings();
   if (!s.dashPassword) return res.status(400).json({ error: "Not set up", needsSetup: true });
@@ -264,7 +260,7 @@ app.post("/api/login", (req, res) => {
   const token = generateToken();
   s.sessions = s.sessions || {};
   s.sessions[token] = { created: Date.now() };
-  // Prune sessions older than 7 days
+ 
   for (const [t, sess] of Object.entries(s.sessions)) {
     if (Date.now() - sess.created > 7 * 24 * 60 * 60 * 1000) delete s.sessions[t];
   }
@@ -272,10 +268,10 @@ app.post("/api/login", (req, res) => {
   res.json({ ok: true, token });
 });
 
-// ─── All routes below require auth ────────────────────────────────────────────
+
 app.use(requireAuth);
 
-// Logout
+
 app.post("/api/logout", (req, res) => {
   const token = req.headers["x-auth-token"];
   const s = loadSettings();
@@ -284,15 +280,13 @@ app.post("/api/logout", (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── Protected API routes ───────────────────────────────────────────────────────────────────────────────────
 
-// GET settings (cookie masked)
 app.get("/api/settings", (req, res) => {
   const s = loadSettings();
   res.json({ ...s, hasCookie: !!s.encryptedCookie, encryptedCookie: undefined, dashPassword: s.dashPassword ? "••••••••" : "", sessions: undefined });
 });
 
-// POST settings
+
 app.post("/api/settings", (req, res) => {
   const current = loadSettings();
   const body = req.body;
@@ -304,19 +298,19 @@ app.post("/api/settings", (req, res) => {
     delayMs: Number(body.delayMs) || current.delayMs,
   };
 
-  // Save cookie (encrypted with dashboard password)
+
   if (body.cookie && body.cookie !== "••••••••") {
     const pw = updated.dashPassword || current.dashPassword;
     updated.encryptedCookie = encryptCookie(body.cookie.trim(), pw);
   }
 
-  // Change dashboard password — re-encrypt cookie with new password
+
   if (body.newPassword && body.newPassword.length >= 4) {
     const oldCookie = current.encryptedCookie
       ? decryptCookie(current.encryptedCookie, current.dashPassword)
       : null;
     updated.dashPassword = hashPassword(body.newPassword);
-    updated.sessions = {}; // invalidate all sessions on password change
+    updated.sessions = {}; 
     if (oldCookie) {
       updated.encryptedCookie = encryptCookie(oldCookie, updated.dashPassword);
     }
@@ -327,12 +321,11 @@ app.post("/api/settings", (req, res) => {
   res.json({ ok: true });
 });
 
-// GET pipeline status
+
 app.get("/api/status", (req, res) => {
   res.json({ running: pipelineRunning, summary: lastSummary });
 });
 
-// POST run pipeline — cookie optional in body; falls back to encrypted server-stored cookie
 app.post("/api/run", async (req, res) => {
   const { date, cookie } = req.body;
   const result = await startPipeline(date || null, cookie || null);
@@ -340,13 +333,13 @@ app.post("/api/run", async (req, res) => {
   res.json(result);
 });
 
-// GET logs for a date
+
 app.get("/api/logs", (req, res) => {
   const date = req.query.date || todayKey();
   res.json(readLogs(date));
 });
 
-// GET list of available log dates
+
 app.get("/api/logs/dates", (req, res) => {
   const dates = fs.readdirSync(LOGS_DIR)
     .filter((f) => f.endsWith(".json"))
@@ -356,7 +349,7 @@ app.get("/api/logs/dates", (req, res) => {
   res.json(dates);
 });
 
-// GET schedule preview for a date (no upload)
+
 app.get("/api/preview", async (req, res) => {
   const date = req.query.date || getYesterday();
   try {
@@ -368,7 +361,7 @@ app.get("/api/preview", async (req, res) => {
   }
 });
 
-// SSE endpoint — token via query param since EventSource can't set headers
+
 app.get("/api/stream", (req, res) => {
   const token = req.query.token;
   const s = loadSettings();

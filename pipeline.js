@@ -1,4 +1,4 @@
-// pipeline.js — core anime upload logic
+
 
 const SKIP_GENRES = ["Josei", "Yuri"];
 
@@ -116,12 +116,12 @@ async function processAnime(item, index, total, cookie, log) {
   if (check.exists) {
     log("  Already exists — checking for missing episodes...", "info");
 
-    // Get page ID and episodes to sync missing ones
+
     const pageId = await fetchText(`https://anikoto-api.onrender.com/page?name=${slug}`);
     const episodes = await fetchJSON(`https://anikoto-api.onrender.com/episodes?id=${pageId}`);
     const malid = episodes[0]?.malid || "";
 
-    // Find the anipub ID by finder
+   
     const finder = makeFinder(info.title);
     let anipubId = null;
     try {
@@ -141,7 +141,7 @@ async function processAnime(item, index, total, cookie, log) {
     return "synced";
   }
 
-  // New anime — full upload flow
+ 
   const pageId = await fetchText(`https://anikoto-api.onrender.com/page?name=${slug}`);
   log(`  Page ID: ${pageId}`);
 
