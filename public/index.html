@@ -620,7 +620,7 @@
       <div class="form-row">
         <label>Anipub Cookie</label>
         <input type="password" id="s-cookie" placeholder="Paste your anipub session cookie"/>
-        <div class="hint">🔒 Stored in your browser only — never sent to or saved on the server.</div>
+        <div class="hint">🔒 Encrypted with your dashboard password before being saved on the server.</div>
       </div>
       <div class="form-row" style="margin-top:14px">
         <label>Change Dashboard Password</label>
@@ -752,6 +752,7 @@ function connectSSE() {
     if (d.type === 'log') handleLog(d.entry);
     if (d.type === 'progress') handleProgress(d);
     if (d.type === 'cron_trigger') handleCronTrigger(d);
+    if (d.type === 'cron_error') handleCronError(d);
   };
   es.onerror = () => {
     // Retry connection after 5s on error
@@ -787,22 +788,12 @@ function handleLog(entry) {
 }
 
 function handleCronTrigger() {
-  const cookie = localStorage.getItem('anipub_cookie');
-  if (!cookie) {
-    appendLogLine('dash-log', { msg: '⏰ Scheduled run triggered — no cookie found. Go to Settings and save your cookie.', type: 'warn', time: new Date().toISOString() });
-    return;
-  }
-  // Always run yesterday's schedule (cron fires today, we want yesterday's anime)
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  const yesterday = d.toISOString().slice(0, 10);
-  console.log('[cron] Auto-trigger received, running pipeline for', yesterday);
-  appendLogLine('dash-log', { msg: '⏰ Auto-scheduled run started for ' + yesterday, type: 'info', time: new Date().toISOString() });
-  apiFetch('/api/run', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date: yesterday, cookie }),
-  });
+  // Server runs the pipeline automatically — this event is just for UI notification
+  appendLogLine('dash-log', { msg: '⏰ Auto-scheduled run started by server.', type: 'info', time: new Date().toISOString() });
+}
+
+function handleCronError({ error }) {
+  appendLogLine('dash-log', { msg: '⏰ Auto-scheduled run failed: ' + error, type: 'error', time: new Date().toISOString() });
 }
 
 function handleProgress({ current, total }) {
@@ -838,9 +829,9 @@ function updateStats() {
 
 // ─── Run pipeline ─────────────────────────────────────────────────────────────
 async function quickRun() {
-  const cookie = localStorage.getItem('anipub_cookie');
-  if (!cookie) { alert('No cookie saved. Go to Settings and paste your anipub cookie first.'); return; }
-  await apiFetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie }) });
+  const res = await apiFetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+  const result = await res.json();
+  if (result.error) { alert('Error: ' + result.error); return; }
   document.getElementById('prog-label').textContent = 'Pipeline starting...';
   document.getElementById('prog-fill').style.width = '0%';
   stats = { added:0, skipped:0, synced:0, errors:0 };
@@ -852,20 +843,19 @@ async function startRun() {
   const date = document.getElementById('run-date').value;
   const delay = parseInt(document.getElementById('run-delay').value) || 3000;
 
-  // Save delay to settings first
   await apiFetch('/api/settings', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ delayMs: delay }),
   });
 
-  const cookie = localStorage.getItem('anipub_cookie');
-  if (!cookie) { alert('No cookie saved. Go to Settings and paste your anipub cookie first.'); return; }
-  await apiFetch('/api/run', {
+  const res = await apiFetch('/api/run', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date: date || null, cookie }),
+    body: JSON.stringify({ date: date || null }),
   });
+  const result = await res.json();
+  if (result.error) { alert('Error: ' + result.error); return; }
 
   document.getElementById('run-log').innerHTML = '';
   stats = { added:0, skipped:0, synced:0, errors:0 };
@@ -959,8 +949,7 @@ function toggleCronTime() {
 async function loadSettings() {
   const res = await apiFetch('/api/settings');
   const s = await res.json();
-  const hasCookie = !!localStorage.getItem('anipub_cookie');
-  document.getElementById('s-cookie').placeholder = hasCookie ? 'Cookie saved in browser ••••••' : 'Paste your anipub session cookie';
+  document.getElementById('s-cookie').placeholder = s.hasCookie ? 'Cookie saved (encrypted on server) ••••••' : 'Paste your anipub session cookie';
   document.getElementById('s-cron-enabled').checked = s.scheduleEnabled;
   document.getElementById('s-cron-time').value = s.scheduleTime || '06:00';
   document.getElementById('s-delay').value = s.delayMs || 3000;
@@ -977,15 +966,8 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
-  // Save cookie to localStorage — never to server
-  const cookieVal = document.getElementById('s-cookie').value.trim();
-  if (cookieVal) {
-    localStorage.setItem('anipub_cookie', cookieVal);
-    document.getElementById('s-cookie').value = '';
-    document.getElementById('s-cookie').placeholder = 'Cookie saved in browser ••••••';
-  }
-
   const payload = {
+    cookie: document.getElementById('s-cookie').value.trim() || undefined,
     scheduleEnabled: document.getElementById('s-cron-enabled').checked,
     scheduleTime: document.getElementById('s-cron-time').value,
     delayMs: parseInt(document.getElementById('s-delay').value) || 3000,
@@ -999,7 +981,8 @@ async function saveSettings() {
   });
 
   document.getElementById('s-cookie').value = '';
-  document.getElementById('s-cookie').placeholder = 'Cookie saved ••••••';
+  document.getElementById('s-newpw').value = '';
+  await loadSettings(); // refresh placeholder with hasCookie from server
   const ok = document.getElementById('save-ok');
   ok.style.display = '';
   setTimeout(() => ok.style.display = 'none', 2500);

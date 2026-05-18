@@ -32,6 +32,42 @@ function saveSettings(s) {
 }
 
 
+
+// ─── Cookie encryption (AES-256-GCM, key derived from dashboard password) ─────
+// Cookie is encrypted at rest — even if settings.json is stolen, cookie is useless without the password
+
+const CIPHER_ALG = "aes-256-gcm";
+
+function deriveKey(password) {
+  // Derive a 32-byte key from the dashboard password using SHA-256
+  return crypto.createHash("sha256").update(password).digest();
+}
+
+function encryptCookie(plaintext, password) {
+  const key = deriveKey(password);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(CIPHER_ALG, key, iv);
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  // Store as iv:tag:ciphertext (all hex)
+  return iv.toString("hex") + ":" + tag.toString("hex") + ":" + encrypted.toString("hex");
+}
+
+function decryptCookie(stored, password) {
+  try {
+    const [ivHex, tagHex, dataHex] = stored.split(":");
+    const key = deriveKey(password);
+    const iv = Buffer.from(ivHex, "hex");
+    const tag = Buffer.from(tagHex, "hex");
+    const data = Buffer.from(dataHex, "hex");
+    const decipher = crypto.createDecipheriv(CIPHER_ALG, key, iv);
+    decipher.setAuthTag(tag);
+    return decipher.update(data) + decipher.final("utf8");
+  } catch {
+    return null; // Wrong password or corrupted data
+  }
+}
+
 // ─── Auth helpers ─────────────────────────────────────────────────────────────
 function hashPassword(pw) {
   return crypto.createHash("sha256").update(pw).digest("hex");
@@ -128,9 +164,15 @@ function getToday() {
 
 async function startPipeline(dateOverride, cookie) {
   if (pipelineRunning) return { error: "Pipeline already running" };
-  if (!cookie) return { error: "Cookie is required" };
 
   const settings = loadSettings();
+
+  // If cookie not passed (e.g. cron auto-run), decrypt from server storage
+  if (!cookie) {
+    if (!settings.encryptedCookie) return { error: "No cookie saved — go to Settings and save your anipub cookie" };
+    cookie = decryptCookie(settings.encryptedCookie, settings.dashPassword);
+    if (!cookie) return { error: "Failed to decrypt cookie — re-save it in Settings" };
+  }
   pipelineRunning = true;
   lastSummary = null;
   broadcast({ type: "status", running: true });
@@ -169,9 +211,14 @@ function applyCron(settings) {
     const expr = `${minute} ${hour} * * *`;
     try {
       cronJob = cron.schedule(expr, () => {
-        console.log(`[cron] Auto-run triggered at ${settings.scheduleTime} — cookie must be provided via dashboard`);
-        // Cookie is not stored on server — auto-run broadcasts a prompt to any open dashboard session
-        broadcast({ type: "cron_trigger", time: new Date().toISOString(), date: getYesterday() });
+        console.log(`[cron] Auto-run triggered at ${settings.scheduleTime}`);
+        // Run fully on server — cookie is decrypted from storage automatically
+        startPipeline(getYesterday(), null).then(result => {
+          if (result?.error) {
+            console.error("[cron] Pipeline failed:", result.error);
+            broadcast({ type: "cron_error", error: result.error });
+          }
+        });
       });
       console.log(`[cron] Scheduled at ${settings.scheduleTime} (${expr})`);
     } catch (e) {
@@ -242,7 +289,7 @@ app.post("/api/logout", (req, res) => {
 // GET settings (cookie masked)
 app.get("/api/settings", (req, res) => {
   const s = loadSettings();
-  res.json({ ...s, cookie: undefined, dashPassword: s.dashPassword ? "••••••••" : "", sessions: undefined });
+  res.json({ ...s, hasCookie: !!s.encryptedCookie, encryptedCookie: undefined, dashPassword: s.dashPassword ? "••••••••" : "", sessions: undefined });
 });
 
 // POST settings
@@ -252,16 +299,27 @@ app.post("/api/settings", (req, res) => {
 
   const updated = {
     ...current,
-    // cookie intentionally never saved to server — stored client-side only
     scheduleTime: body.scheduleTime || current.scheduleTime,
     scheduleEnabled: typeof body.scheduleEnabled === "boolean" ? body.scheduleEnabled : current.scheduleEnabled,
     delayMs: Number(body.delayMs) || current.delayMs,
   };
 
-  // Change dashboard password if provided
+  // Save cookie (encrypted with dashboard password)
+  if (body.cookie && body.cookie !== "••••••••") {
+    const pw = updated.dashPassword || current.dashPassword;
+    updated.encryptedCookie = encryptCookie(body.cookie.trim(), pw);
+  }
+
+  // Change dashboard password — re-encrypt cookie with new password
   if (body.newPassword && body.newPassword.length >= 4) {
+    const oldCookie = current.encryptedCookie
+      ? decryptCookie(current.encryptedCookie, current.dashPassword)
+      : null;
     updated.dashPassword = hashPassword(body.newPassword);
-    updated.sessions = {}; // invalidate all sessions
+    updated.sessions = {}; // invalidate all sessions on password change
+    if (oldCookie) {
+      updated.encryptedCookie = encryptCookie(oldCookie, updated.dashPassword);
+    }
   }
 
   saveSettings(updated);
@@ -274,11 +332,10 @@ app.get("/api/status", (req, res) => {
   res.json({ running: pipelineRunning, summary: lastSummary });
 });
 
-// POST run pipeline — cookie sent from client localStorage, never stored on server
+// POST run pipeline — cookie optional in body; falls back to encrypted server-stored cookie
 app.post("/api/run", async (req, res) => {
   const { date, cookie } = req.body;
-  if (!cookie) return res.status(400).json({ error: "Cookie is required" });
-  const result = await startPipeline(date || null, cookie);
+  const result = await startPipeline(date || null, cookie || null);
   if (result.error) return res.status(400).json(result);
   res.json(result);
 });
