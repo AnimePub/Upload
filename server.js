@@ -385,5 +385,5 @@ app.get("/api/stream", (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n✓ Anipub Dashboard running at http://localhost:${PORT}\n`);
+  console.log(`Anipub Uploader Dashboard running at http://localhost:${PORT}\n`);
 });
