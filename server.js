@@ -8,7 +8,7 @@ const { runPipeline } = require("./pipeline");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
+module.exports = app;
 const DATA_FILE = path.join(__dirname, "data", "settings.json");
 const LOGS_DIR = path.join(__dirname, "logs");
 
