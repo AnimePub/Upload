@@ -113,7 +113,7 @@ async function processAnime(item, index, total, cookie, log) {
     Genre: genres,
   });
 
-  if (check.exists) {
+  if (check.exists === true ) {
     log("  Already exists — checking for missing episodes...", "info");
 
 
@@ -127,8 +127,9 @@ async function processAnime(item, index, total, cookie, log) {
     try {
 	
       const found = await fetchJSON(`https://www.anipub.xyz/api/find/${encodeURIComponent(info.title)}`);
-      anipubId = found?.id || found?.ID || null;
+      anipubId = found?.id || found?.id || null;
     } catch (e) {
+      log(`AniPub id is ${anipubId}`)
       log(`  Could not find anipub ID by finder: ${e.message}`, "warn");
     }
 
@@ -188,7 +189,7 @@ async function processAnime(item, index, total, cookie, log) {
   if (Number(uploadResp) !== 1) {
     throw new Error("Upload returned: " + JSON.stringify(uploadResp));
   }
-  log("  ✓ Main entry uploaded.", "ok");
+  log(` ✓ Main entry uploaded. ${info.title}`, "ok");
 
   await syncEpisodes(newNum, episodes, malid, cookie, log);
 
