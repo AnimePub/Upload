@@ -109,7 +109,7 @@ async function processAnime(item, index, total, cookie, log) {
   }
 
   const check = await postJSON("https://anipub.xyz/api/check", {
-    Name: info.title,
+    Name: info.title.trim(),
     Genre: genres,
   });
 
@@ -126,7 +126,7 @@ async function processAnime(item, index, total, cookie, log) {
     let anipubId = null;
     try {
 	
-      const found = await fetchJSON(`https://www.anipub.xyz/api/find/${encodeURIComponent(info.title)}`);
+      const found = await fetchJSON(`https://www.anipub.xyz/api/find/${encodeURIComponent(info.title.trim())}`);
       anipubId = found?.id || found?.id || null;
     } catch (e) {
       log(`AniPub id is ${anipubId}`)
