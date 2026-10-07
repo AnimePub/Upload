@@ -55,7 +55,7 @@ async function syncEpisodes(anipubId, episodes, malid, cookie, log) {
 
   let currentCount = 0;
   try {
-    const found = await fetchJSON(`https://www.anipub.xyz/api/info/${anipubId}`);
+    const found = await fetchJSON(`https://www.anipub.org/api/info/${anipubId}`);
     currentCount = Number(found?.epCount+1) || 0 +1 ;
     log(`    Current ep count on anipub: ${currentCount+1}`);
   } catch (e) {
@@ -67,7 +67,7 @@ async function syncEpisodes(anipubId, episodes, malid, cookie, log) {
     const epNum = parseInt(ep.num) || 0;
     if (epNum <= currentCount) continue;
     APIArray.push({
-      link: `src=https://anipub.xyz/play/${malid}/${epNum}/sub`,
+      link: `src=https://anipub.org/play/${malid}/${epNum}/sub`,
     });
   }
 
@@ -78,7 +78,7 @@ async function syncEpisodes(anipubId, episodes, malid, cookie, log) {
 
   log(`    Bulk adding ${APIArray.length} missing episode(s)...`);
   const resp = await postJSON(
-    "https://anipub.xyz/Bulk/Add",
+    "https://anipub.org/Bulk/Add",
     { ID: anipubId, ARY: APIArray },
     cookie
   );
@@ -99,7 +99,7 @@ async function processAnime(item, index, total, cookie, log) {
     return "skipped";
   }
 
-  const info = await fetchJSON(`https://anikoto-api.onrender.com/info?name=${slug}`);
+  const info = await fetchJSON(`https://anikoto-api-glng.onrender.com/info?name=${slug}`);
   const genres = info.genres || [];
 
   const skipReason = genres.find((g) => SKIP_GENRES.includes(g));
@@ -108,7 +108,7 @@ async function processAnime(item, index, total, cookie, log) {
     return "skipped";
   }
 
-  const check = await postJSON("https://anipub.xyz/api/check", {
+  const check = await postJSON("https://anipub.org/api/check", {
     Name: info.title.trim(),
     Genre: genres,
   });
@@ -117,8 +117,8 @@ async function processAnime(item, index, total, cookie, log) {
     log("  Already exists — checking for missing episodes...", "info");
 
 
-    const pageId = await fetchText(`https://anikoto-api.onrender.com/page?name=${slug}`);
-    const episodes = await fetchJSON(`https://anikoto-api.onrender.com/episodes?id=${pageId}`);
+    const pageId = await fetchText(`https://anikoto-api-glng.onrender.com/page?name=${slug}`);
+    const episodes = await fetchJSON(`https://anikoto-api-glng.onrender.com/episodes?id=${pageId}`);
     const malid = episodes[0]?.malid || "";
 
    
@@ -126,7 +126,7 @@ async function processAnime(item, index, total, cookie, log) {
     let anipubId = null;
     try {
 	
-      const found = await fetchJSON(`https://www.anipub.xyz/api/find/${encodeURIComponent(info.title.trim())}`);
+      const found = await fetchJSON(`https://www.anipub.org/api/find/${encodeURIComponent(info.title.trim())}`);
       anipubId = found?.id || found?.id || null;
     } catch (e) {
       log(`AniPub id is ${anipubId}`)
@@ -143,15 +143,15 @@ async function processAnime(item, index, total, cookie, log) {
   }
 
  
-  const pageId = await fetchText(`https://anikoto-api.onrender.com/page?name=${slug}`);
+  const pageId = await fetchText(`https://anikoto-api-glng.onrender.com/page?name=${slug}`);
   log(`  Page ID: ${pageId}`);
 
-  const episodes = await fetchJSON(`https://anikoto-api.onrender.com/episodes?id=${pageId}`);
+  const episodes = await fetchJSON(`https://anikoto-api-glng.onrender.com/episodes?id=${pageId}`);
   log(`  Episodes found: ${episodes.length}`);
 
   const malid = episodes[0]?.malid || "";
 
-  const lastNum = parseInt(await fetchText("https://anipub.xyz/api/getLast"));
+  const lastNum = parseInt(await fetchText("https://anipub.org/api/getLast"));
   const newNum = lastNum + 1;
   log(`  New anipub ID: ${newNum}`);
 
@@ -168,7 +168,7 @@ async function processAnime(item, index, total, cookie, log) {
     ip: info.poster,
     cover: info.poster,
     syn: "",
-    link: `src=https://anipub.xyz/play/${malid}/1/sub`,
+    link: `src=https://anipub.org/play/${malid}/1/sub`,
     title: info.title,
     aired: info.aired || "",
     premiered: info.premiered || "",
@@ -184,7 +184,7 @@ async function processAnime(item, index, total, cookie, log) {
     type: "iframe",
   };
 
-  const uploadResp = await postJSON("https://anipub.xyz/upload", uploadInfo, cookie);
+  const uploadResp = await postJSON("https://anipub.org/upload", uploadInfo, cookie);
 
   if (Number(uploadResp) !== 1) {
     throw new Error("Upload returned: " + JSON.stringify(uploadResp));
@@ -204,7 +204,7 @@ async function runPipeline({ date, cookie, delayMs = 3000, onLog, onProgress, on
 
   let schedule;
   try {
-    schedule = await fetchJSON(`https://anikoto-api.onrender.com/schedule?time=${date}`);
+    schedule = await fetchJSON(`https://anikoto-api-glng.onrender.com/schedule?time=${date}`);
     log(`Schedule has ${schedule.length} anime.`, "info");
   } catch (e) {
     log(`Failed to fetch schedule: ${e.message}`, "error");

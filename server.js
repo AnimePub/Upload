@@ -353,7 +353,7 @@ app.get("/api/logs/dates", (req, res) => {
 app.get("/api/preview", async (req, res) => {
   const date = req.query.date || getYesterday();
   try {
-    const r = await fetch(`https://anikoto-api.onrender.com/schedule?time=${date}`);
+    const r = await fetch(`https://anikoto-api-glng.onrender.com/schedule?time=${date}`);
     const data = await r.json();
     res.json(data);
   } catch (e) {
