@@ -4,11 +4,12 @@ const fs = require("fs");
 const path = require("path");
 const cron = require("node-cron");
 const crypto = require("crypto");
+
 const { runPipeline } = require("./pipeline");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
+require('dotenv').config();
 const DATA_FILE = path.join(__dirname, "data", "settings.json");
 const LOGS_DIR = path.join(__dirname, "logs");
 
@@ -150,10 +151,10 @@ function broadcast(data) {
   });
 }
 
-
+// we will get today as uploading pas seems a bit not right right ? 
 function getYesterday() {
   const d = new Date();
-  d.setDate(d.getDate() - 1);
+  d.setDate(d.getDate());
   return d.toISOString().slice(0, 10);
 }
 

@@ -1,5 +1,5 @@
-
-
+let ids = [];
+const secret = process.env.secret;
 const SKIP_GENRES = ["Josei", "Yuri"];
 
 function sleep(ms) {
@@ -84,7 +84,7 @@ async function syncEpisodes(anipubId, episodes, malid, cookie, log) {
   );
 
   if (Number(resp) === 1) {
-    log("    ✓ Bulk add successful.", "ok");
+    log("     Bulk add successful.", "ok");
   } else {
     throw new Error("Bulk/Add returned: " + JSON.stringify(resp));
   }
@@ -95,7 +95,7 @@ async function processAnime(item, index, total, cookie, log) {
   log(`\n[${index}/${total}] ${item.title}`);
 
   if (!slug) {
-    log("  ✗ Could not extract slug — skipping.", "error");
+    log("   Could not extract slug — skipping.", "error");
     return "skipped";
   }
 
@@ -134,6 +134,8 @@ async function processAnime(item, index, total, cookie, log) {
     }
 
     if (anipubId) {
+      // Now gotta push it !
+      ids.push(anipubId);
       await syncEpisodes(anipubId, episodes, malid, cookie, log);
     } else {
       log("  Could not resolve anipub ID — episode sync skipped.", "warn");
@@ -189,11 +191,11 @@ async function processAnime(item, index, total, cookie, log) {
   if (Number(uploadResp) !== 1) {
     throw new Error("Upload returned: " + JSON.stringify(uploadResp));
   }
-  log(` ✓ Main entry uploaded. ${info.title}`, "ok");
+  log(`  Main entry uploaded. ${info.title}`, "ok");
 
   await syncEpisodes(newNum, episodes, malid, cookie, log);
 
-  log(`  ✓ Done: ${info.title}`, "ok");
+  log(`   Done: ${info.title}`, "ok");
   return "added";
 }
 
@@ -222,7 +224,7 @@ async function runPipeline({ date, cookie, delayMs = 3000, onLog, onProgress, on
       else if (result === "synced") synced++;
       else skipped++;
     } catch (e) {
-      log(`  ✗ Error: ${e.message}`, "error");
+      log(`   Error: ${e.message}`, "error");
       errors++;
     }
 
@@ -235,6 +237,14 @@ async function runPipeline({ date, cookie, delayMs = 3000, onLog, onProgress, on
   const summary = { added, skipped, synced, errors };
   log(`=== Finished | Added:${added} Synced:${synced} Skipped:${skipped} Errors:${errors} ===`, "ok");
   onDone?.(summary);
+  if(secret){
+  fetch(`https://anipub.org/sentMsge?id=${ids}&key=${secret}`)
+  .then(resp=> resp.json())
+  .then(res=>{
+     log(` == Message: ${res}`);
+     ids = [];
+  })
+}
   return summary;
 }
 
